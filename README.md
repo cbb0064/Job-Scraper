@@ -11,7 +11,13 @@ A Python web scraping utility for extracting data from websites.
 
 ## Requirements
 
+- Python 3.12 or later
+- After running pip install you will also need to run "playwright install" to get headless browser
+- Go into run.bat and change the file paths to where you save the python scripts
+
 ## Installation
 run pip install -r requirements.txt in terminal to install the modules
+
 ## Usage
-python
+
+Locate the directory where you have your run.bat file saved and execute the file.
