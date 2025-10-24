@@ -1,4 +1,4 @@
-requests
-beautifulsoup4
-fake-useragent
 playwright
+beautifulsoup4
+requests
+fake-useragent
