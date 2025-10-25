@@ -1,0 +1,92 @@
+import subprocess
+import os
+import time
+import re
+import pandas as pd
+from datetime import datetime
+
+# Configuration
+NUM_CSV_FILES = 1  # This should not change and was only used to test each file
+
+def validate_location(location):
+    pattern = r'^.+,\s[A-Z]{2}$'
+    return bool(re.match(pattern, location))
+
+def wait_for_csvs(timeout=300):
+    found_files = []
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout and len(found_files) < NUM_CSV_FILES:
+        temp_files = [f for f in os.listdir("temp") if f.endswith(".csv")]
+        
+        for file in temp_files:
+            filepath = os.path.join("temp", file)
+            if filepath not in found_files:
+                found_files.append(filepath)
+                print(f"CSV file found: {filepath} ({len(found_files)}/{NUM_CSV_FILES})")
+        
+        if len(found_files) < NUM_CSV_FILES:
+            time.sleep(1)
+    
+    if len(found_files) == NUM_CSV_FILES:
+        print(f"All {NUM_CSV_FILES} CSV files found!")
+        return found_files
+    else:
+        print(f"Timeout: Only found {len(found_files)}/{NUM_CSV_FILES} CSV files after {timeout} seconds")
+        return found_files
+
+def convert_csvs_to_excel(csv_paths, job_title, location):
+    os.makedirs("Job Searches", exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{job_title.replace(' ', '_')}_{location.replace(', ', '_').replace(' ', '_')}_{timestamp}.xlsx"
+    filepath = os.path.join("Job Searches", filename)
+    
+    with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
+        for i, csv_path in enumerate(csv_paths):
+            df = pd.read_csv(csv_path)
+            sheet_name = f"Sheet{i+1}"
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+    
+    print(f"Excel file created: {filepath}")
+    return filepath
+
+def main():
+    job_title = input("Job Title, Keywords, or Company: ")
+    
+    while True:
+        location = input("Location (City, State ABV): ")
+        if validate_location(location):
+            break
+        print("Improper format. Please use format: City, ST (e.g., Birmingham, AL)")
+    
+    os.makedirs("temp", exist_ok=True)
+    
+    print("Starting Indeed scraper...")
+    process = subprocess.Popen(
+        ["python", "indeedScraper.py"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    
+    stdout, stderr = process.communicate(input=f"{job_title}\n{location}\n")
+    
+    if process.returncode == 0:
+        print("Scraper completed successfully")
+        csv_paths = wait_for_csvs()
+        if csv_paths:
+            print(f"Found {len(csv_paths)} CSV files:")
+            for path in csv_paths:
+                print(f"  - {path}")
+            
+            excel_path = convert_csvs_to_excel(csv_paths, job_title, location)
+            print(f"All CSV files converted to Excel: {excel_path}")
+        else:
+            print("No CSV files found")
+    else:
+        print(f"Scraper failed: {stderr}")
+
+if __name__ == "__main__":
+    main()
