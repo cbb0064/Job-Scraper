@@ -3,4 +3,4 @@ temp/*.csv
 __pycache__/
 *.pyc
 README.md
-run.bat
+Job Searches/*.csv
