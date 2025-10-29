@@ -6,7 +6,7 @@ import pandas as pd
 from datetime import datetime
 
 # Configuration
-NUM_CSV_FILES = 1  # This should not change and was only used to test each file
+NUM_CSV_FILES = 2  # Wait for both Indeed and LinkedIn CSVs
 
 def validate_location(location):
     pattern = r'^.+,\s[A-Z]{2}$'
@@ -63,30 +63,42 @@ def main():
     os.makedirs("temp", exist_ok=True)
     
     print("Starting Indeed scraper...")
-    process = subprocess.Popen(
-        ["python", "indeedScraper.py"],
-        stdin=subprocess.PIPE,
+    indeed_process = subprocess.Popen(
+        ["python", "indeedScraper.py", job_title, location],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True
     )
     
-    stdout, stderr = process.communicate(input=f"{job_title}\n{location}\n")
+    print("Starting LinkedIn scraper...")
+    linkedin_process = subprocess.Popen(
+        ["python", "LinkedinScraper.py", job_title, location],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
     
-    if process.returncode == 0:
-        print("Scraper completed successfully")
-        csv_paths = wait_for_csvs()
-        if csv_paths:
-            print(f"Found {len(csv_paths)} CSV files:")
-            for path in csv_paths:
-                print(f"  - {path}")
-            
-            excel_path = convert_csvs_to_excel(csv_paths, job_title, location)
-            print(f"All CSV files converted to Excel: {excel_path}")
-        else:
-            print("No CSV files found")
+    # Wait for both processes to complete
+    indeed_stdout, indeed_stderr = indeed_process.communicate()
+    linkedin_stdout, linkedin_stderr = linkedin_process.communicate()
+    
+    print("Both scrapers completed")
+    
+    csv_paths = wait_for_csvs()
+    if csv_paths:
+        print(f"Found {len(csv_paths)} CSV files:")
+        for path in csv_paths:
+            print(f"  - {path}")
+        
+        excel_path = convert_csvs_to_excel(csv_paths, job_title, location)
+        print(f"All CSV files converted to Excel: {excel_path}")
+        
+        # Clear CSV files from temp directory
+        for csv_path in csv_paths:
+            os.remove(csv_path)
+        print("Temporary CSV files cleared")
     else:
-        print(f"Scraper failed: {stderr}")
+        print("No CSV files found")
 
 if __name__ == "__main__":
     main()
