@@ -5,6 +5,7 @@ import time
 import re
 import tempfile
 import os
+import sys
 
 def scrape_indeed_with_playwright(job_title, job_location):
     max_attempts = 10
@@ -101,14 +102,19 @@ def validate_location(location):
     return bool(re.match(pattern, location))
 
 if __name__ == "__main__":
-    job_title = input("Job Title, Keywords, or Company: ")
+    if len(sys.argv) == 3:
+        job_title = sys.argv[1]
+        location = sys.argv[2]
+    else:
+        job_title = input("Job Title, Keywords, or Company: ")
+        
+        while True:
+            location = input("Location (City, State ABV): ")
+            if validate_location(location):
+                break
+            print("Improper format. Please use format: City, ST (e.g., Birmingham, AL)")
     
-    while True:
-        location = input("Location (City, State ABV): ")
-        if validate_location(location):
-            break
-        print("Improper format. Please use format: City, ST (e.g., Birmingham, AL)")
-    
+    os.makedirs("temp", exist_ok=True)
     jobs = scrape_indeed_with_playwright(job_title, location)
     
     if jobs:

@@ -2,3 +2,6 @@ playwright
 beautifulsoup4
 requests
 fake-useragent
+pandas
+langdetect
+openpyxl

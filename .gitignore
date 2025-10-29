@@ -3,3 +3,4 @@ temp/*.csv
 __pycache__/
 *.pyc
 README.md
+Job Searches/*.csv
