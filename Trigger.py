@@ -6,7 +6,7 @@ import pandas as pd
 from datetime import datetime
 
 # Configuration
-NUM_CSV_FILES = 2  # Wait for both Indeed and LinkedIn CSVs
+NUM_CSV_FILES = 3  # Wait for Indeed, LinkedIn, and Handshake CSVs
 
 def validate_location(location):
     pattern = r'^.+,\s[A-Z]{2}$'
@@ -78,11 +78,20 @@ def main():
         text=True
     )
     
-    # Wait for both processes to complete
+    print("Starting Handshake scraper...")
+    handshake_process = subprocess.Popen(
+        ["python", "HandshakeScraper.py", job_title, location],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    
+    # Wait for all processes to complete
     indeed_stdout, indeed_stderr = indeed_process.communicate()
     linkedin_stdout, linkedin_stderr = linkedin_process.communicate()
+    handshake_stdout, handshake_stderr = handshake_process.communicate()
     
-    print("Both scrapers completed")
+    print("All scrapers completed")
     
     csv_paths = wait_for_csvs()
     if csv_paths:
