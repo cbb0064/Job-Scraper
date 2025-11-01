@@ -5,3 +5,6 @@ fake-useragent
 pandas
 langdetect
 openpyxl
+python-dotenv
+selenium
+webdriver-manager

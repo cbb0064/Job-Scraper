@@ -8,46 +8,60 @@ import os
 import sys
 
 def scrape_indeed_with_playwright(job_title, job_location):
-    max_attempts = 10
+    all_jobs = []
+    max_attempts = 5
+    page_num = 0
     
-    for attempt in range(max_attempts):
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                
-                page.set_default_timeout(60000)
-                page.set_extra_http_headers({
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                })
-                
-                url = f"https://www.indeed.com/jobs?q={job_title}&l={job_location}"
-                print(f"Attempt {attempt + 1}: Navigating to {url}")
-                
-                start_time = time.time()
-                page.goto(url, wait_until="networkidle", timeout=15000)
-                response_time = time.time() - start_time
-                print(f"Response time: {response_time:.2f} seconds")
-                time.sleep(3)
-                
-                html = page.content()
-                browser.close()
-                
-                with open('playwright_debug.html', 'w', encoding='utf-8') as f:
-                    f.write(html)
-                print("HTML saved to playwright_debug.html")
-                
-                return parse_jobs(html)
-                
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            if attempt < max_attempts - 1:
-                print(f"Retrying in 2 seconds...")
-                time.sleep(2)
-            else:
-                print("All attempts failed")
+    while page_num < 10:  # Max 10 pages to prevent infinite loop
+        start_param = page_num * 10
+        
+        for attempt in range(max_attempts):
+            try:
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(headless=True)
+                    page = browser.new_page()
+                    
+                    page.set_default_timeout(60000)
+                    page.set_extra_http_headers({
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    })
+                    
+                    url = f"https://www.indeed.com/jobs?q={job_title}&l={job_location}&start={start_param}"
+                    print(f"Page {page_num + 1}, Attempt {attempt + 1}: Navigating to {url}")
+                    
+                    start_time = time.time()
+                    page.goto(url, wait_until="networkidle", timeout=5000)
+                    response_time = time.time() - start_time
+                    print(f"Response time: {response_time:.2f} seconds")
+                    time.sleep(2)
+                    
+                    html = page.content()
+                    browser.close()
+                    
+                    jobs = parse_jobs(html)
+                    
+                    # If no jobs found, we've reached the end
+                    if len(jobs) == 0:
+                        print(f"No more jobs found on page {page_num + 1}. Stopping.")
+                        return all_jobs
+                    
+                    all_jobs.extend(jobs)
+                    print(f"Page {page_num + 1}: Found {len(jobs)} jobs")
+                    break
+                    
+            except Exception as e:
+                print(f"Page {page_num + 1}, Attempt {attempt + 1} failed: {e}")
+                if attempt < max_attempts - 1:
+                    print(f"Retrying in 1 seconds...")
+                    time.sleep(1)
+                else:
+                    print(f"All attempts failed for page {page_num + 1}")
+                    return all_jobs
+        
+        page_num += 1
     
-    return []
+    print(f"Total jobs found across all pages: {len(all_jobs)}")
+    return all_jobs
 
 def parse_jobs(html):
     soup = BeautifulSoup(html, 'html.parser')
@@ -57,9 +71,12 @@ def parse_jobs(html):
     cards = (soup.select('[data-testid="job-result"]') or
              soup.select('.resultContent') or 
              soup.select('.job_seen_beacon') or
-             soup.select('[data-jk]'))
+             soup.select('[data-jk]') or
+             soup.select('.slider_container .slider_item') or
+             soup.select('.jobsearch-SerpJobCard'))
     
     print(f"Found {len(cards)} job cards")
+    print(f"Using selector: {type(cards).__name__}")
     
     for card in cards:
         # Extract job data
@@ -72,9 +89,7 @@ def parse_jobs(html):
                        card.select_one('.companyName'))
         company = company_elem.text.strip() if company_elem else ""
         
-        location_elem = (card.select_one('[data-testid="job-location"]') or
-                        card.select_one('.companyLocation'))
-        location = location_elem.text.strip() if location_elem else ""
+
         
         link_elem = (card.select_one('[data-testid="job-title"] a') or
                     card.select_one('h2 a'))
@@ -83,16 +98,18 @@ def parse_jobs(html):
         if title and company:
             jobs.append({
                 'title': title,
-                'company': company, 
-                'location': location,
+                'company': company,
                 'link': link
             })
+        else:
+            print(f"Skipped card - Title: {bool(title)}, Company: {bool(company)}")
     
+    print(f"Successfully parsed {len(jobs)} jobs")
     return jobs
 
 def save_to_csv(jobs, filename):
     with open(filename, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=['title', 'company', 'location', 'link'])
+        writer = csv.DictWriter(f, fieldnames=['title', 'company', 'link'])
         writer.writeheader()
         writer.writerows(jobs)
 
@@ -123,6 +140,6 @@ if __name__ == "__main__":
         save_to_csv(jobs, filepath)
         print(f"\nFound {len(jobs)} jobs saved to {filepath}:")
         for job in jobs:
-            print(f"{job['title']} at {job['company']} ({job['location']})")
+            print(f"{job['title']} at {job['company']}")
     else:
         print("No jobs found")

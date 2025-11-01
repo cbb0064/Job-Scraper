@@ -2,5 +2,4 @@ playwright_debug.html
 temp/*.csv
 __pycache__/
 *.pyc
-README.md
-Job Searches/*.csv
+Job Searches/*.xlsx

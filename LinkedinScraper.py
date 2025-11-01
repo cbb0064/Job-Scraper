@@ -39,9 +39,7 @@ def transform(soup):
                 company = (card.find('h4', class_='base-search-card__subtitle') or
                           card.find('h4', class_='result-card__subtitle'))
                 
-                # Try multiple selectors for location
-                location = (card.find('span', class_='job-search-card__location') or
-                           card.find('span', class_='result-card__location'))
+
                 
                 # Try multiple selectors for link
                 link = (card.find('a', class_='base-card__full-link') or
@@ -51,7 +49,6 @@ def transform(soup):
                     job = {
                         'title': title.text.strip() if title else '',
                         'company': company.text.strip() if company else '',
-                        'location': location.text.strip() if location else '',
                         'job_url': link.get('href') if link else ''
                     }
                     jobs.append(job)
@@ -98,7 +95,6 @@ def main(job_title, location):
             job_list.append({
                 'title': job['title'],
                 'company': job['company'],
-                'location': job['location'],
                 'link': job['job_url']
             })
 

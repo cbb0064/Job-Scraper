@@ -1,4 +1,4 @@
 @echo off
-cd /d "c:\Users\camer\Desktop\Projects\Job-Scraper" rem Change file path to directory where run.bat is
+cd /d "" rem Change file path to directory where Trigger.py is
 python Trigger.py
 pause
