@@ -35,18 +35,41 @@ def wait_for_csvs(timeout=300):
         print(f"Timeout: Only found {len(found_files)}/{NUM_CSV_FILES} CSV files after {timeout} seconds")
         return found_files
 
-def convert_csvs_to_excel(csv_paths, job_title, location):
+def convert_csvs_to_excel(csv_paths, job_title, location, preference):
     os.makedirs("Job Searches", exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{job_title.replace(' ', '_')}_{location.replace(', ', '_').replace(' ', '_')}_{timestamp}.xlsx"
     filepath = os.path.join("Job Searches", filename)
     
+    # Load and process CSVs
+    dfs = {}
+    for csv_path in csv_paths:
+        df = pd.read_csv(csv_path)
+        # Remove duplicates within each CSV
+        df = df.drop_duplicates(subset=['title', 'company'])
+        
+        if 'Indeed' in csv_path:
+            dfs['Indeed'] = df
+        elif 'LinkedIn' in csv_path:
+            dfs['LinkedIn'] = df
+    
+    # Remove cross-duplicates based on preference
+    if len(dfs) == 2:
+        preferred = preference.capitalize()
+        other = 'LinkedIn' if preferred == 'Indeed' else 'Indeed'
+        
+        if preferred in dfs and other in dfs:
+            # Create combined key for comparison
+            preferred_keys = set(zip(dfs[preferred]['title'], dfs[preferred]['company']))
+            
+            # Remove duplicates from non-preferred source
+            mask = ~dfs[other].apply(lambda row: (row['title'], row['company']) in preferred_keys, axis=1)
+            dfs[other] = dfs[other][mask]
+    
     with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
-        for i, csv_path in enumerate(csv_paths):
-            df = pd.read_csv(csv_path)
-            sheet_name = f"Sheet{i+1}"
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        for source, df in dfs.items():
+            df.to_excel(writer, sheet_name=source, index=False)
     
     print(f"Excel file created: {filepath}")
     return filepath
@@ -60,27 +83,27 @@ def main():
             break
         print("Improper format. Please use format: City, ST (e.g., Birmingham, AL)")
     
+    while True:
+        preference = input("Which source do you prefer? (indeed/linkedin): ").lower()
+        if preference in ['indeed', 'linkedin']:
+            break
+        print("Please enter 'indeed' or 'linkedin'")
+    
     os.makedirs("temp", exist_ok=True)
     
     print("Starting Indeed scraper...")
     indeed_process = subprocess.Popen(
-        ["python", "indeedScraper.py", job_title, location],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
+        ["python", "IndeedScraper.py", job_title, location]
     )
     
     print("Starting LinkedIn scraper...")
     linkedin_process = subprocess.Popen(
-        ["python", "LinkedinScraper.py", job_title, location],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
+        ["python", "LinkedinScraper.py", job_title, location]
     )
     
     # Wait for all processes to complete
-    indeed_stdout, indeed_stderr = indeed_process.communicate()
-    linkedin_stdout, linkedin_stderr = linkedin_process.communicate()
+    indeed_process.wait()
+    linkedin_process.wait()
     
     print("All scrapers completed")
     
@@ -90,7 +113,7 @@ def main():
         for path in csv_paths:
             print(f"  - {path}")
         
-        excel_path = convert_csvs_to_excel(csv_paths, job_title, location)
+        excel_path = convert_csvs_to_excel(csv_paths, job_title, location, preference)
         print(f"All CSV files converted to Excel: {excel_path}")
         
         # Clear CSV files from temp directory
