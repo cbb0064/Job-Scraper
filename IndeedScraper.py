@@ -9,7 +9,7 @@ import sys
 
 def scrape_indeed_with_playwright(job_title, job_location):
     all_jobs = []
-    max_attempts = 5
+    max_attempts = 10
     page_num = 0
     
     while page_num < 10:  # Max 10 pages to prevent infinite loop
@@ -73,7 +73,10 @@ def parse_jobs(html):
              soup.select('.job_seen_beacon') or
              soup.select('[data-jk]') or
              soup.select('.slider_container .slider_item') or
-             soup.select('.jobsearch-SerpJobCard'))
+             soup.select('.jobsearch-SerpJobCard') or
+             soup.select('.result') or
+             soup.select('div[data-jk]') or
+             soup.select('table td'))
     
     print(f"Found {len(cards)} job cards")
     print(f"Using selector: {type(cards).__name__}")
@@ -82,11 +85,16 @@ def parse_jobs(html):
         # Extract job data
         title_elem = (card.select_one('[data-testid="job-title"] span') or
                      card.select_one('h2 span[title]') or
-                     card.select_one('.jobTitle span'))
+                     card.select_one('.jobTitle span') or
+                     card.select_one('h2 a span') or
+                     card.select_one('.jobTitle a span') or
+                     card.select_one('span[title]'))
         title = title_elem.get('title') or title_elem.text.strip() if title_elem else ""
         
         company_elem = (card.select_one('[data-testid="company-name"]') or
-                       card.select_one('.companyName'))
+                       card.select_one('.companyName') or
+                       card.select_one('span.companyName') or
+                       card.select_one('a[data-testid="company-name"]'))
         company = company_elem.text.strip() if company_elem else ""
         
 
