@@ -70,6 +70,25 @@ def convert_csvs_to_excel(csv_paths, job_title, location, preference):
     with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
         for source, df in dfs.items():
             df.to_excel(writer, sheet_name=source, index=False)
+            
+            # Format link columns as hyperlinks
+            worksheet = writer.sheets[source]
+            link_col = None
+            for col_idx, col_name in enumerate(df.columns, 1):
+                if col_name in ['link', 'job_url']:
+                    link_col = col_idx
+                    break
+            
+            if link_col:
+                from openpyxl.styles import Font
+                from openpyxl.utils import get_column_letter
+                
+                col_letter = get_column_letter(link_col)
+                for row_idx in range(2, len(df) + 2):
+                    cell = worksheet[f'{col_letter}{row_idx}']
+                    if cell.value and cell.value.startswith('http'):
+                        cell.hyperlink = cell.value
+                        cell.font = Font(color="0000FF", underline="single")
     
     print(f"Excel file created: {filepath}")
     return filepath
