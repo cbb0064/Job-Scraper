@@ -25,3 +25,4 @@ Locate the directory where you have your run.bat file saved and execute the file
 ## Notes
 
 The indeed scraper may need multiple attempts. Fake agent simulates a request but indeed rejects it sometimes. Pagination also is slow so let this run for a minute.
+Adjust number of attempts as needed for your network speed.
